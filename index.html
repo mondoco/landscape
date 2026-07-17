@@ -4,13 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>إدارة أجور العمال</title>
-  <link rel="icon" href="/favicon.ico" sizes="any">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-auth-compat.js"></script>
   <style>
-    /* نفس التنسيقات السابقة بالكامل */
     :root {
       --primary: #0d9488; --primary-dark: #0f766e; --bg: #f1f5f9; --card: #ffffff;
       --text: #1e293b; --text-light: #64748b; --border: #e2e8f0;
@@ -93,16 +91,19 @@
         <button class="btn btn-outline" id="logoutBtn" style="margin-top:auto;">تسجيل الخروج</button>
       </aside>
       <main class="main-content" id="mainContent">
+        <!-- Dashboard -->
         <section id="dashboard-section" class="section active">
           <div class="grid-4" id="dashboardStats"></div>
           <div class="card mt-1"><h2>👷 العمال الحاضرون اليوم</h2><div id="presentWorkersList"></div></div>
         </section>
+        <!-- Workers -->
         <section id="workers-section" class="section">
           <div class="card">
             <div class="flex-row" style="justify-content: space-between;"><h2>👥 قائمة العمال</h2><button class="btn" id="addWorkerBtn">➕ إضافة عامل</button></div>
             <table id="workersTable"><thead><tr><th>الاسم</th><th>رقم الهاتف</th><th>إجراءات</th></tr></thead><tbody></tbody></table>
           </div>
         </section>
+        <!-- Attendance -->
         <section id="attendance-section" class="section">
           <div class="card">
             <h2>📅 تسجيل الحضور</h2>
@@ -114,12 +115,14 @@
             <div id="attendanceForm"></div>
           </div>
         </section>
+        <!-- Advances -->
         <section id="advances-section" class="section">
           <div class="card">
             <div class="flex-row" style="justify-content: space-between;"><h2>💰 سلف العمال</h2><button class="btn" id="addAdvanceBtn">➕ سلفة جديدة</button></div>
             <table id="advancesTable"><thead><tr><th>العامل</th><th>المبلغ</th><th>التاريخ</th><th>ملاحظة</th><th>حذف</th></tr></thead><tbody></tbody></table>
           </div>
         </section>
+        <!-- Reports -->
         <section id="reports-section" class="section">
           <div class="card">
             <h2>📄 تقارير العمال</h2>
@@ -149,13 +152,28 @@
             <div id="financialReport"></div>
           </div>
           <div class="card">
-            <h2>📈 متابعة أداء العاملين</h2>
+            <h2>📈 متابعة أداء العاملين (شهرياً)</h2>
             <table id="performanceTable">
-              <thead><tr><th>العامل</th><th>نسبة الحضور (30 يوم)</th><th>أيام الغياب</th><th>متوسط ساعات إضافي</th><th>إجمالي السلف</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>العامل</th><th>أيام الحضور</th><th>أيام الغياب</th><th>ساعات إضافية</th>
+                  <th>السلف</th><th>المرتب</th><th>الصافي</th>
+                </tr>
+              </thead>
               <tbody></tbody>
             </table>
           </div>
+          <div class="card">
+            <h2>📥 تصدير تقرير شهري (Excel)</h2>
+            <div class="flex-row mb-1">
+              <label>اختر الشهر:</label>
+              <input type="month" id="exportMonth" style="max-width:200px;">
+              <button class="btn" id="exportExcelBtn">📤 تصدير CSV</button>
+            </div>
+            <p style="font-size:0.9rem; color: var(--text-light);">سيتم تحميل ملف CSV متوافق مع Excel يحتوي على ملخص الشهر المختار.</p>
+          </div>
         </section>
+        <!-- Settings -->
         <section id="settings-section" class="section">
           <div class="card"><h2>⚙️ الإعدادات</h2>
             <div class="form-group"><label>سعر اليوم</label><input type="number" id="dailyRate" min="0" step="0.01"></div>
@@ -178,20 +196,15 @@
   <div class="modal-overlay" id="modalOverlay"><div class="modal" id="modalContent"></div></div>
 
   <script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
-
-  // Your web app's Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyCcw4qjurShGR2ybf41E3DDO21jS8-MpbM",
-    authDomain: "landscape-225e0.firebaseapp.com",
-    projectId: "landscape-225e0",
-    storageBucket: "landscape-225e0.firebasestorage.app",
-    messagingSenderId: "46953917277",
-    appId: "1:46953917277:web:15190d6b0095177b3ad6b4"
-  };
+    // ==================== Firebase Config ====================
+    const firebaseConfig = {
+      apiKey: "AIzaSyCcw4qjurShGR2ybf41E3DDO21jS8-MpbM",
+      authDomain: "landscape-225e0.firebaseapp.com",
+      projectId: "landscape-225e0",
+      storageBucket: "landscape-225e0.firebasestorage.app",
+      messagingSenderId: "46953917277",
+      appId: "1:46953917277:web:15190d6b0095177b3ad6b4"
+    };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     const auth = firebase.auth();
@@ -201,7 +214,7 @@
     let settings = { dailyRate: 0, overtimeRate: 0 };
     let currentAttendanceDate = new Date().toISOString().split('T')[0];
 
-    // ========== المصادقة ==========
+    // ==================== المصادقة ====================
     const loginScreen = document.getElementById('loginScreen');
     const appMain = document.getElementById('appMain');
     document.getElementById('googleSignInBtn').addEventListener('click', () => {
@@ -224,7 +237,7 @@
       }
     });
 
-    // ========== التنقل ==========
+    // ==================== التنقل ====================
     function navigateTo(sectionId) {
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
       document.getElementById(sectionId + '-section').classList.add('active');
@@ -248,7 +261,7 @@
       document.getElementById('sidebar').classList.toggle('open');
     });
 
-    // ========== دوال مساعدة ==========
+    // ==================== دوال عامة ====================
     function formatDate(date) { return new Date(date).toISOString().split('T')[0]; }
     function openModal(html) { document.getElementById('modalContent').innerHTML = html; document.getElementById('modalOverlay').classList.add('active'); }
     function closeModal() { document.getElementById('modalOverlay').classList.remove('active'); }
@@ -268,7 +281,6 @@
         if (doc.exists && doc.data().userId === currentUser.uid) {
           settings = doc.data();
         } else {
-          // لا يوجد مستند أو أنه لا يخص المستخدم، أنشئ واحداً جديداً
           settings = { dailyRate: 0, overtimeRate: 0, userId: currentUser.uid };
         }
       } catch(e) {
@@ -278,7 +290,7 @@
       document.getElementById('overtimeRate').value = settings.overtimeRate || 0;
     }
 
-    // ========== Dashboard ==========
+    // ==================== لوحة التحكم ====================
     async function loadDashboard() {
       if (!currentUser) return;
       await loadWorkersFromDB();
@@ -316,7 +328,7 @@
       }
     }
 
-    // ========== العمال ==========
+    // ==================== العمال ====================
     async function loadWorkers() { await loadWorkersFromDB(); renderWorkersTable(); }
     function renderWorkersTable() {
       const tbody = document.querySelector('#workersTable tbody');
@@ -358,7 +370,7 @@
       closeModal(); loadWorkers();
     };
 
-    // ========== الحضور ==========
+    // ==================== الحضور ====================
     function loadAttendancePage() {
       document.getElementById('attendanceDate').value = currentAttendanceDate;
       loadAttendanceForDate(currentAttendanceDate);
@@ -417,7 +429,7 @@
       alert('تم حفظ الحضور');
     });
 
-    // ========== السلف ==========
+    // ==================== السلف ====================
     async function loadAdvances() {
       await loadWorkersFromDB();
       const snapshot = await db.collection('advances').where('userId', '==', currentUser.uid).orderBy('date','desc').get();
@@ -453,31 +465,7 @@
       closeModal(); loadAdvances();
     };
 
-    // ========== التقارير ==========
-    async function loadReportsPage() {
-      await loadWorkersFromDB();
-      await loadSettingsFromDB();
-      const selectWorker = document.getElementById('reportWorker');
-      selectWorker.innerHTML = '<option value="">اختر عامل</option>' + workers.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
-      document.getElementById('reportPeriod').value = 'monthly';
-      document.getElementById('reportMonth').classList.remove('hidden');
-      document.getElementById('reportYear').classList.add('hidden');
-      document.getElementById('reportMonth').value = formatDate(new Date()).slice(0,7);
-      loadPerformanceReport();
-    }
-    document.getElementById('reportPeriod').addEventListener('change', function() {
-      if (this.value === 'monthly') {
-        document.getElementById('reportMonth').classList.remove('hidden');
-        document.getElementById('reportYear').classList.add('hidden');
-      } else {
-        document.getElementById('reportMonth').classList.add('hidden');
-        document.getElementById('reportYear').classList.remove('hidden');
-        document.getElementById('reportYear').value = new Date().getFullYear();
-      }
-    });
-    document.getElementById('generateReportBtn').addEventListener('click', generateIndividualReport);
-    document.getElementById('financialReportBtn').addEventListener('click', generateFinancialReport);
-
+    // ==================== التقارير ====================
     async function getAttendanceInRange(start, end) {
       const snapshot = await db.collection('attendance')
         .where('userId', '==', currentUser.uid)
@@ -576,41 +564,146 @@
           <div class="stat-card"><div class="value">${totalOvertime}</div><div class="label">ساعات إضافية</div></div>
           <div class="stat-card"><div class="value">${totalSalary.toFixed(2)}</div><div class="label">إجمالي الأجور</div></div>
           <div class="stat-card"><div class="value">${totalAdvances.toFixed(2)}</div><div class="label">إجمالي السلف</div></div>
-          <div class="stat-card"><div class="value">${(totalSalary - totalAdvances).toFixed(2)}</div><div class="label">الصافي</div></div>
         </div><p class="mt-1">${label}</p>`;
     }
 
     async function loadPerformanceReport() {
       await loadWorkersFromDB();
-      const today = new Date();
-      const start30 = new Date(today); start30.setDate(today.getDate() - 30);
-      const startStr = formatDate(start30);
-      const endStr = formatDate(today);
-      const attendanceDocs = await getAttendanceInRange(startStr, endStr);
-      const advances = await getAdvancesInRange(startStr, endStr);
+      await loadSettingsFromDB();
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      const startDate = `${year}-${String(month).padStart(2,'0')}-01`;
+      const endDate = formatDate(now);
+      
+      const attendanceDocs = await getAttendanceInRange(startDate, endDate);
+      const advancesDocs = await getAdvancesInRange(startDate, endDate);
+      
       const perf = {};
-      workers.forEach(w => { perf[w.id] = { name: w.name, present:0, absent:0, vacation:0, overtimeTotal:0, overtimeCount:0, advancesTotal:0 }; });
+      workers.forEach(w => { 
+        perf[w.id] = { name: w.name, present:0, absent:0, vacation:0, overtimeTotal:0, advancesTotal:0 };
+      });
+      
       attendanceDocs.forEach(doc => {
         const records = doc.records || {};
         for (const wid in records) {
           if (!perf[wid]) continue;
           const rec = records[wid];
-          if (rec.status === 'present') { perf[wid].present++; if (rec.overtimeHours > 0) { perf[wid].overtimeTotal += rec.overtimeHours; perf[wid].overtimeCount++; } }
-          else if (rec.status === 'absent') perf[wid].absent++;
+          if (rec.status === 'present') { 
+            perf[wid].present++; 
+            perf[wid].overtimeTotal += rec.overtimeHours || 0;
+          } else if (rec.status === 'absent') perf[wid].absent++;
           else if (rec.status === 'vacation') perf[wid].vacation++;
         }
       });
-      advances.forEach(a => { if(perf[a.workerId]) perf[a.workerId].advancesTotal += a.amount; });
+      
+      advancesDocs.forEach(a => { 
+        if(perf[a.workerId]) perf[a.workerId].advancesTotal += a.amount; 
+      });
+
       const tbody = document.querySelector('#performanceTable tbody');
       tbody.innerHTML = Object.values(perf).map(p => {
-        const total = p.present + p.absent + p.vacation || 1;
-        const rate = ((p.present / total)*100).toFixed(1);
-        const avgOvertime = p.overtimeCount ? (p.overtimeTotal / p.overtimeCount).toFixed(1) : '0';
-        return `<tr><td>${p.name}</td><td>${rate}%</td><td>${p.absent}</td><td>${avgOvertime}</td><td>${p.advancesTotal.toFixed(2)}</td></tr>`;
+        const monthlySalary = (p.present * settings.dailyRate) + (p.overtimeTotal * settings.overtimeRate);
+        const net = monthlySalary - p.advancesTotal;
+        return `<tr>
+          <td>${p.name}</td>
+          <td>${p.present}</td>
+          <td>${p.absent}</td>
+          <td>${p.overtimeTotal}</td>
+          <td>${p.advancesTotal.toFixed(2)}</td>
+          <td>${monthlySalary.toFixed(2)}</td>
+          <td>${net.toFixed(2)}</td>
+        </tr>`;
       }).join('');
     }
 
-    // ========== الإعدادات ==========
+    function loadReportsPage() {
+      loadWorkersFromDB().then(() => {
+        const selectWorker = document.getElementById('reportWorker');
+        selectWorker.innerHTML = '<option value="">اختر عامل</option>' + workers.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+        document.getElementById('reportPeriod').value = 'monthly';
+        document.getElementById('reportMonth').classList.remove('hidden');
+        document.getElementById('reportYear').classList.add('hidden');
+        document.getElementById('reportMonth').value = formatDate(new Date()).slice(0,7);
+        document.getElementById('exportMonth').value = formatDate(new Date()).slice(0,7);
+        loadSettingsFromDB().then(() => loadPerformanceReport());
+      });
+    }
+
+    document.getElementById('reportPeriod').addEventListener('change', function() {
+      if (this.value === 'monthly') {
+        document.getElementById('reportMonth').classList.remove('hidden');
+        document.getElementById('reportYear').classList.add('hidden');
+      } else {
+        document.getElementById('reportMonth').classList.add('hidden');
+        document.getElementById('reportYear').classList.remove('hidden');
+        document.getElementById('reportYear').value = new Date().getFullYear();
+      }
+    });
+    document.getElementById('generateReportBtn').addEventListener('click', generateIndividualReport);
+    document.getElementById('financialReportBtn').addEventListener('click', generateFinancialReport);
+
+    // ==================== تصدير CSV ====================
+    function exportToCSV(filename, rows) {
+      if (!rows.length) return alert('لا توجد بيانات للتصدير');
+      const headers = Object.keys(rows[0]);
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => headers.map(h => `"${(row[h] || '').toString().replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+    }
+
+    document.getElementById('exportExcelBtn').addEventListener('click', async () => {
+      const monthVal = document.getElementById('exportMonth').value;
+      if (!monthVal) return alert('اختر الشهر');
+      const [year, month] = monthVal.split('-').map(Number);
+      const start = `${year}-${String(month).padStart(2,'0')}-01`;
+      const lastDay = new Date(year, month, 0).getDate();
+      const end = `${year}-${String(month).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+
+      await loadWorkersFromDB();
+      await loadSettingsFromDB();
+      const attendanceDocs = await getAttendanceInRange(start, end);
+      const advancesDocs = await getAdvancesInRange(start, end);
+
+      const data = {};
+      workers.forEach(w => { data[w.id] = { name: w.name, present:0, absent:0, vacation:0, overtime:0, advances:0 }; });
+      attendanceDocs.forEach(doc => {
+        const records = doc.records || {};
+        for (const wid in records) {
+          if (!data[wid]) continue;
+          const rec = records[wid];
+          if (rec.status === 'present') { data[wid].present++; data[wid].overtime += rec.overtimeHours || 0; }
+          else if (rec.status === 'absent') data[wid].absent++;
+          else if (rec.status === 'vacation') data[wid].vacation++;
+        }
+      });
+      advancesDocs.forEach(a => { if (data[a.workerId]) data[a.workerId].advances += a.amount; });
+
+      const rows = Object.values(data).map(d => {
+        const salary = (d.present * settings.dailyRate) + (d.overtime * settings.overtimeRate);
+        const net = salary - d.advances;
+        return {
+          'العامل': d.name,
+          'أيام الحضور': d.present,
+          'أيام الغياب': d.absent,
+          'أيام الإجازة': d.vacation,
+          'ساعات إضافية': d.overtime,
+          'السلف': d.advances.toFixed(2),
+          'إجمالي المرتب': salary.toFixed(2),
+          'صافي المرتب': net.toFixed(2)
+        };
+      });
+
+      exportToCSV(`تقرير_${year}_${String(month).padStart(2,'0')}.csv`, rows);
+    });
+
+    // ==================== الإعدادات ====================
     async function loadSettings() {
       await loadSettingsFromDB();
       document.getElementById('dailyRate').value = settings.dailyRate || 0;
