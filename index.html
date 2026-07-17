@@ -157,7 +157,7 @@
               <thead>
                 <tr>
                   <th>العامل</th><th>أيام الحضور</th><th>أيام الغياب</th><th>ساعات إضافية</th>
-                  <th>السلف</th><th>المرتب</th><th>الصافي</th>
+                  <th>المرتب</th><th>السلف</th><th>الصافي</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -610,8 +610,8 @@
           <td>${p.present}</td>
           <td>${p.absent}</td>
           <td>${p.overtimeTotal}</td>
-          <td>${p.advancesTotal.toFixed(2)}</td>
           <td>${monthlySalary.toFixed(2)}</td>
+          <td>${p.advancesTotal.toFixed(2)}</td>
           <td>${net.toFixed(2)}</td>
         </tr>`;
       }).join('');
@@ -694,8 +694,8 @@
           'أيام الغياب': d.absent,
           'أيام الإجازة': d.vacation,
           'ساعات إضافية': d.overtime,
-          'السلف': d.advances.toFixed(2),
           'إجمالي المرتب': salary.toFixed(2),
+          'السلف': d.advances.toFixed(2),
           'صافي المرتب': net.toFixed(2)
         };
       });
