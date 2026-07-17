@@ -4,12 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>إدارة أجور العمال</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <style>
-    /* نفس الـ CSS السابق تماماً، أضفنا فقط تنسيق لزر تسجيل الدخول */
+    /* نفس التنسيقات السابقة بالكامل */
     :root {
       --primary: #0d9488; --primary-dark: #0f766e; --bg: #f1f5f9; --card: #ffffff;
       --text: #1e293b; --text-light: #64748b; --border: #e2e8f0;
@@ -70,14 +71,12 @@
   </style>
 </head>
 <body>
-  <!-- واجهة تسجيل الدخول -->
   <div id="loginScreen" class="section active">
     <h2>🌿 تطبيق لاندسكيب</h2>
     <p style="margin-bottom:2rem;">سجّل الدخول بحساب Google</p>
     <button id="googleSignInBtn"><span>🔐</span> تسجيل الدخول بـ Google</button>
   </div>
 
-  <!-- التطبيق الرئيسي (مخفي قبل الدخول) -->
   <div id="appMain" class="hidden">
     <div class="app-container">
       <button class="menu-toggle" id="menuToggle">☰</button>
@@ -122,7 +121,40 @@
           </div>
         </section>
         <section id="reports-section" class="section">
-          <div class="card"><!-- نفس عناصر التقارير --></div>
+          <div class="card">
+            <h2>📄 تقارير العمال</h2>
+            <div class="flex-row mb-1">
+              <select id="reportWorker" style="max-width:200px;"><option value="">اختر عامل</option></select>
+              <select id="reportPeriod" style="max-width:150px;">
+                <option value="monthly">شهري</option>
+                <option value="yearly">سنوي</option>
+              </select>
+              <input type="month" id="reportMonth" style="max-width:150px;">
+              <input type="year" id="reportYear" style="max-width:100px;" class="hidden">
+              <button class="btn" id="generateReportBtn">عرض</button>
+            </div>
+            <div id="individualReport"></div>
+          </div>
+          <div class="card">
+            <h2>📊 تقرير المال العام</h2>
+            <div class="flex-row mb-1">
+              <select id="financialPeriod" style="max-width:150px;">
+                <option value="daily">يومي</option>
+                <option value="monthly">شهري</option>
+                <option value="yearly">سنوي</option>
+              </select>
+              <input type="date" id="financialDate" style="max-width:150px;">
+              <button class="btn" id="financialReportBtn">عرض</button>
+            </div>
+            <div id="financialReport"></div>
+          </div>
+          <div class="card">
+            <h2>📈 متابعة أداء العاملين</h2>
+            <table id="performanceTable">
+              <thead><tr><th>العامل</th><th>نسبة الحضور (30 يوم)</th><th>أيام الغياب</th><th>متوسط ساعات إضافي</th><th>إجمالي السلف</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </section>
         <section id="settings-section" class="section">
           <div class="card"><h2>⚙️ الإعدادات</h2>
@@ -160,47 +192,37 @@
     messagingSenderId: "46953917277",
     appId: "1:46953917277:web:15190d6b0095177b3ad6b4"
   };
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     const auth = firebase.auth();
 
-    // ========== المصادقة ==========
     let currentUser = null;
+    let workers = [];
+    let settings = { dailyRate: 0, overtimeRate: 0 };
+    let currentAttendanceDate = new Date().toISOString().split('T')[0];
+
+    // ========== المصادقة ==========
     const loginScreen = document.getElementById('loginScreen');
     const appMain = document.getElementById('appMain');
-
     document.getElementById('googleSignInBtn').addEventListener('click', () => {
       const provider = new firebase.auth.GoogleAuthProvider();
-      auth.signInWithPopup(provider).catch(error => alert('فشل تسجيل الدخول: ' + error.message));
+      auth.signInWithPopup(provider).catch(err => alert('فشل تسجيل الدخول: ' + err.message));
     });
-
     document.getElementById('logoutBtn').addEventListener('click', () => auth.signOut());
 
     auth.onAuthStateChanged(async (user) => {
       if (user) {
         currentUser = user;
-        loginScreen.classList.remove('active');
-        loginScreen.classList.add('hidden');
+        loginScreen.classList.remove('active'); loginScreen.classList.add('hidden');
         appMain.classList.remove('hidden');
         await loadSettingsFromDB();
         navigateTo('dashboard');
       } else {
         currentUser = null;
-        loginScreen.classList.add('active');
-        loginScreen.classList.remove('hidden');
+        loginScreen.classList.add('active'); loginScreen.classList.remove('hidden');
         appMain.classList.add('hidden');
       }
     });
-
-    // ========== المتغيرات العامة ==========
-    let workers = [];
-    let settings = { dailyRate: 0, overtimeRate: 0 };
-    let currentAttendanceDate = new Date().toISOString().split('T')[0];
-
-    function formatDate(date) { return new Date(date).toISOString().split('T')[0]; }
 
     // ========== التنقل ==========
     function navigateTo(sectionId) {
@@ -226,12 +248,12 @@
       document.getElementById('sidebar').classList.toggle('open');
     });
 
-    // ========== Modal ==========
+    // ========== دوال مساعدة ==========
+    function formatDate(date) { return new Date(date).toISOString().split('T')[0]; }
     function openModal(html) { document.getElementById('modalContent').innerHTML = html; document.getElementById('modalOverlay').classList.add('active'); }
     function closeModal() { document.getElementById('modalOverlay').classList.remove('active'); }
     document.getElementById('modalOverlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeModal(); });
 
-    // ========== دوال مساعدة ==========
     async function loadWorkersFromDB() {
       if (!currentUser) return;
       const snapshot = await db.collection('workers').where('userId', '==', currentUser.uid).orderBy('name').get();
@@ -241,10 +263,15 @@
 
     async function loadSettingsFromDB() {
       if (!currentUser) return;
-      const doc = await db.collection('settings').doc('global').get();
-      if (doc.exists && doc.data().userId === currentUser.uid) {
-        settings = doc.data();
-      } else {
+      try {
+        const doc = await db.collection('settings').doc('global').get();
+        if (doc.exists && doc.data().userId === currentUser.uid) {
+          settings = doc.data();
+        } else {
+          // لا يوجد مستند أو أنه لا يخص المستخدم، أنشئ واحداً جديداً
+          settings = { dailyRate: 0, overtimeRate: 0, userId: currentUser.uid };
+        }
+      } catch(e) {
         settings = { dailyRate: 0, overtimeRate: 0, userId: currentUser.uid };
       }
       document.getElementById('dailyRate').value = settings.dailyRate || 0;
@@ -260,40 +287,52 @@
       let presentCount = 0, absentCount = 0, vacationCount = 0, totalOvertime = 0;
       const presentWorkers = [];
       try {
-        const todayDoc = await db.collection('attendance').doc(`${currentUser.uid}_${today}`).get();
+        const docId = `${currentUser.uid}_${today}`;
+        const todayDoc = await db.collection('attendance').doc(docId).get();
         if (todayDoc.exists) {
           const records = todayDoc.data().records || {};
           for (const workerId in records) {
             const rec = records[workerId];
             if (rec.status === 'present') {
               presentCount++; totalOvertime += rec.overtimeHours || 0;
-              const worker = workers.find(w => w.id === workerId);
-              presentWorkers.push({ name: worker?.name || 'غير معروف', overtime: rec.overtimeHours });
+              const w = workers.find(w => w.id === workerId);
+              presentWorkers.push({ name: w?.name || 'غير معروف', overtime: rec.overtimeHours || 0 });
             } else if (rec.status === 'vacation') vacationCount++;
             else if (rec.status === 'absent') absentCount++;
           }
         }
-      } catch(e){ console.error(e); }
+      } catch(e) { console.error(e); }
       document.getElementById('dashboardStats').innerHTML = `
         <div class="stat-card"><div class="value">${presentCount}</div><div class="label">حاضر</div></div>
         <div class="stat-card"><div class="value">${absentCount}</div><div class="label">غائب</div></div>
         <div class="stat-card"><div class="value">${vacationCount}</div><div class="label">إجازة</div></div>
         <div class="stat-card"><div class="value">${totalOvertime}</div><div class="label">ساعات إضافية</div></div>`;
-      let listHtml = presentWorkers.length ?
-        '<table><thead><tr><th>العامل</th><th>ساعات إضافية</th></tr></thead><tbody>' + presentWorkers.map(p => `<tr><td>${p.name}</td><td>${p.overtime}</td></tr>`).join('') + '</tbody></table>'
-        : '<p>لا يوجد عمال حاضرون اليوم.</p>';
-      document.getElementById('presentWorkersList').innerHTML = listHtml;
+      const listDiv = document.getElementById('presentWorkersList');
+      if (presentWorkers.length) {
+        listDiv.innerHTML = '<table><thead><tr><th>العامل</th><th>ساعات إضافية</th></tr></thead><tbody>' +
+          presentWorkers.map(p => `<tr><td>${p.name}</td><td>${p.overtime}</td></tr>`).join('') + '</tbody></table>';
+      } else {
+        listDiv.innerHTML = '<p>لا يوجد عمال حاضرون اليوم.</p>';
+      }
     }
 
     // ========== العمال ==========
     async function loadWorkers() { await loadWorkersFromDB(); renderWorkersTable(); }
     function renderWorkersTable() {
       const tbody = document.querySelector('#workersTable tbody');
-      tbody.innerHTML = workers.map(w => `<tr><td>${w.name}</td><td>${w.phone || '-'}</td><td class="flex-row"><button class="btn btn-sm btn-outline" onclick="editWorker('${w.id}')">✏️</button><button class="btn btn-sm btn-danger" onclick="deleteWorker('${w.id}')">🗑️</button></td></tr>`).join('');
+      tbody.innerHTML = workers.map(w => `<tr><td>${w.name}</td><td>${w.phone || '-'}</td>
+        <td class="flex-row">
+          <button class="btn btn-sm btn-outline" onclick="editWorker('${w.id}')">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteWorker('${w.id}')">🗑️</button>
+        </td></tr>`).join('');
     }
     window.editWorker = function(id) {
       const w = workers.find(x => x.id === id); if(!w) return;
-      openModal(`<h2>تعديل عامل</h2><div class="form-group"><label>الاسم</label><input id="editWorkerName" value="${w.name}"></div><div class="form-group"><label>رقم الهاتف</label><input id="editWorkerPhone" value="${w.phone||''}"></div><button class="btn" onclick="saveEditWorker('${id}')">حفظ</button><button class="btn btn-outline" onclick="closeModal()">إلغاء</button>`);
+      openModal(`<h2>تعديل عامل</h2>
+        <div class="form-group"><label>الاسم</label><input id="editWorkerName" value="${w.name}"></div>
+        <div class="form-group"><label>رقم الهاتف</label><input id="editWorkerPhone" value="${w.phone||''}"></div>
+        <button class="btn" onclick="saveEditWorker('${id}')">حفظ</button>
+        <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>`);
     };
     window.saveEditWorker = async function(id) {
       const name = document.getElementById('editWorkerName').value.trim();
@@ -302,11 +341,15 @@
       closeModal(); loadWorkers();
     };
     window.deleteWorker = async function(id) {
-      if (!confirm('متأكد؟')) return;
+      if (!confirm('متأكد من حذف العامل؟')) return;
       await db.collection('workers').doc(id).delete(); loadWorkers();
     };
     document.getElementById('addWorkerBtn').addEventListener('click', () => {
-      openModal(`<h2>إضافة عامل</h2><div class="form-group"><label>الاسم</label><input id="newWorkerName"></div><div class="form-group"><label>رقم الهاتف</label><input id="newWorkerPhone"></div><button class="btn" onclick="addWorker()">إضافة</button><button class="btn btn-outline" onclick="closeModal()">إلغاء</button>`);
+      openModal(`<h2>إضافة عامل</h2>
+        <div class="form-group"><label>الاسم</label><input id="newWorkerName"></div>
+        <div class="form-group"><label>رقم الهاتف</label><input id="newWorkerPhone"></div>
+        <button class="btn" onclick="addWorker()">إضافة</button>
+        <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>`);
     });
     window.addWorker = async function() {
       const name = document.getElementById('newWorkerName').value.trim();
@@ -315,7 +358,7 @@
       closeModal(); loadWorkers();
     };
 
-    // ========== الحضور (باستخدام userId في ID المستند) ==========
+    // ========== الحضور ==========
     function loadAttendancePage() {
       document.getElementById('attendanceDate').value = currentAttendanceDate;
       loadAttendanceForDate(currentAttendanceDate);
@@ -337,11 +380,17 @@
       let html = '<table><thead><tr><th>العامل</th><th>الحالة</th><th>ساعات إضافية</th></tr></thead><tbody>';
       workers.forEach(worker => {
         const rec = records[worker.id] || {};
-        html += `<tr><td>${worker.name}</td><td><select class="status-select" data-worker="${worker.id}">
-          <option value="present" ${rec.status==='present'?'selected':''}>✅ حاضر</option>
-          <option value="vacation" ${rec.status==='vacation'?'selected':''}>🏖️ إجازة</option>
-          <option value="absent" ${rec.status==='absent'?'selected':''}>❌ غائب</option>
-        </select></td><td><input type="number" class="overtime-input" data-worker="${worker.id}" value="${rec.overtimeHours||0}" min="0" step="0.5" style="width:80px;" ${rec.status!=='present'?'disabled':''}></td></tr>`;
+        html += `<tr>
+          <td>${worker.name}</td>
+          <td>
+            <select class="status-select" data-worker="${worker.id}">
+              <option value="present" ${rec.status==='present'?'selected':''}>✅ حاضر</option>
+              <option value="vacation" ${rec.status==='vacation'?'selected':''}>🏖️ إجازة</option>
+              <option value="absent" ${rec.status==='absent'?'selected':''}>❌ غائب</option>
+            </select>
+          </td>
+          <td><input type="number" class="overtime-input" data-worker="${worker.id}" value="${rec.overtimeHours||0}" min="0" step="0.5" style="width:80px;" ${rec.status!=='present'?'disabled':''}></td>
+        </tr>`;
       });
       html += '</tbody></table>';
       container.innerHTML = html;
@@ -358,11 +407,14 @@
       const records = {};
       document.querySelectorAll('#attendanceForm .status-select').forEach(sel => {
         const wid = sel.dataset.worker;
-        records[wid] = { status: sel.value, overtimeHours: (sel.value==='present' ? (parseFloat(document.querySelector(`.overtime-input[data-worker="${wid}"]`).value)||0) : 0) };
+        records[wid] = {
+          status: sel.value,
+          overtimeHours: (sel.value==='present' ? (parseFloat(document.querySelector(`.overtime-input[data-worker="${wid}"]`).value)||0) : 0)
+        };
       });
       const docId = `${currentUser.uid}_${date}`;
       await db.collection('attendance').doc(docId).set({ userId: currentUser.uid, date, records });
-      alert('تم الحفظ');
+      alert('تم حفظ الحضور');
     });
 
     // ========== السلف ==========
@@ -370,16 +422,23 @@
       await loadWorkersFromDB();
       const snapshot = await db.collection('advances').where('userId', '==', currentUser.uid).orderBy('date','desc').get();
       const advances = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      document.querySelector('#advancesTable tbody').innerHTML = advances.map(a => `<tr><td>${a.workerName}</td><td>${a.amount}</td><td>${a.date}</td><td>${a.note||'-'}</td><td><button class="btn btn-sm btn-danger" onclick="deleteAdvance('${a.id}')">🗑️</button></td></tr>`).join('');
+      document.querySelector('#advancesTable tbody').innerHTML = advances.map(a => 
+        `<tr><td>${a.workerName}</td><td>${a.amount}</td><td>${a.date}</td><td>${a.note||'-'}</td>
+        <td><button class="btn btn-sm btn-danger" onclick="deleteAdvance('${a.id}')">🗑️</button></td></tr>`
+      ).join('');
     }
-    window.deleteAdvance = async function(id) { if(confirm('حذف؟')){ await db.collection('advances').doc(id).delete(); loadAdvances(); } };
+    window.deleteAdvance = async function(id) { 
+      if(confirm('حذف السلفة؟')){ await db.collection('advances').doc(id).delete(); loadAdvances(); } 
+    };
     document.getElementById('addAdvanceBtn').addEventListener('click', () => {
-      let opts = workers.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
-      openModal(`<h2>إضافة سلفة</h2><div class="form-group"><label>العامل</label><select id="advanceWorker">${opts}</select></div>
+      const opts = workers.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+      openModal(`<h2>إضافة سلفة</h2>
+        <div class="form-group"><label>العامل</label><select id="advanceWorker">${opts}</select></div>
         <div class="form-group"><label>المبلغ</label><input type="number" id="advanceAmount" min="0" step="0.01"></div>
         <div class="form-group"><label>التاريخ</label><input type="date" id="advanceDate" value="${formatDate(new Date())}"></div>
         <div class="form-group"><label>ملاحظة</label><input id="advanceNote"></div>
-        <button class="btn" onclick="addAdvance()">حفظ</button><button class="btn btn-outline" onclick="closeModal()">إلغاء</button>`);
+        <button class="btn" onclick="addAdvance()">حفظ</button>
+        <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>`);
     });
     window.addAdvance = async function() {
       const workerId = document.getElementById('advanceWorker').value;
@@ -387,30 +446,183 @@
       const date = document.getElementById('advanceDate').value;
       if (!workerId || !amount || !date) return alert('أكمل البيانات');
       const w = workers.find(x => x.id === workerId);
-      await db.collection('advances').add({ userId: currentUser.uid, workerId, workerName: w?.name||'', amount, date, note: document.getElementById('advanceNote').value.trim() });
+      await db.collection('advances').add({
+        userId: currentUser.uid, workerId, workerName: w?.name||'',
+        amount, date, note: document.getElementById('advanceNote').value.trim()
+      });
       closeModal(); loadAdvances();
     };
 
-    // ========== التقارير (نفس السابق مع إضافة userId للاستعلامات) ==========
-    // ... سنضع الكود المختصر لأجزاء التقارير مع تعديل استعلامات Firestore لتشمل userId ...
-    // (لتوفير الوقت، أرفق الكود كامل لكن يمكنك الاعتماد على المنطق نفسه: إضافة where('userId','==',currentUser.uid) لجميع الاستعلامات)
-    // يفضل إضافة نفس دوال التقارير السابقة مع تعديل بادئات المستندات.
-    // سأكتب التقارير بشكل مختصر هنا لتجنب الإطالة، ولكن يمكنك نسخ الكود الكامل من الرسالة السابقة وإضافة where userId.
-    // إذا أردت النسخة الكاملة أخبرني وسأرسلها.
-    console.log('الرجاء إضافة استعلامات التقارير مع where userId للمستخدم الحالي.');
+    // ========== التقارير ==========
+    async function loadReportsPage() {
+      await loadWorkersFromDB();
+      await loadSettingsFromDB();
+      const selectWorker = document.getElementById('reportWorker');
+      selectWorker.innerHTML = '<option value="">اختر عامل</option>' + workers.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+      document.getElementById('reportPeriod').value = 'monthly';
+      document.getElementById('reportMonth').classList.remove('hidden');
+      document.getElementById('reportYear').classList.add('hidden');
+      document.getElementById('reportMonth').value = formatDate(new Date()).slice(0,7);
+      loadPerformanceReport();
+    }
+    document.getElementById('reportPeriod').addEventListener('change', function() {
+      if (this.value === 'monthly') {
+        document.getElementById('reportMonth').classList.remove('hidden');
+        document.getElementById('reportYear').classList.add('hidden');
+      } else {
+        document.getElementById('reportMonth').classList.add('hidden');
+        document.getElementById('reportYear').classList.remove('hidden');
+        document.getElementById('reportYear').value = new Date().getFullYear();
+      }
+    });
+    document.getElementById('generateReportBtn').addEventListener('click', generateIndividualReport);
+    document.getElementById('financialReportBtn').addEventListener('click', generateFinancialReport);
+
+    async function getAttendanceInRange(start, end) {
+      const snapshot = await db.collection('attendance')
+        .where('userId', '==', currentUser.uid)
+        .where('date', '>=', start)
+        .where('date', '<=', end)
+        .get();
+      return snapshot.docs.map(d => ({ date: d.id.split('_')[1] || d.id, ...d.data() }));
+    }
+    async function getAdvancesInRange(start, end, workerId = null) {
+      let query = db.collection('advances')
+        .where('userId', '==', currentUser.uid)
+        .where('date', '>=', start)
+        .where('date', '<=', end);
+      if (workerId) query = query.where('workerId', '==', workerId);
+      const snapshot = await query.get();
+      return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    }
+
+    async function generateIndividualReport() {
+      const workerId = document.getElementById('reportWorker').value;
+      if (!workerId) return alert('اختر عامل');
+      const period = document.getElementById('reportPeriod').value;
+      let start, end;
+      if (period === 'monthly') {
+        const monthVal = document.getElementById('reportMonth').value;
+        if (!monthVal) return alert('اختر الشهر');
+        const [year, month] = monthVal.split('-').map(Number);
+        start = `${year}-${String(month).padStart(2,'0')}-01`;
+        const lastDay = new Date(year, month, 0).getDate();
+        end = `${year}-${String(month).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+      } else {
+        const year = document.getElementById('reportYear').value;
+        if (!year) return alert('اختر السنة');
+        start = `${year}-01-01`; end = `${year}-12-31`;
+      }
+      const attendanceDocs = await getAttendanceInRange(start, end);
+      const advances = await getAdvancesInRange(start, end, workerId);
+      let daysWorked = 0, overtime = 0, vacation = 0, absent = 0;
+      attendanceDocs.forEach(doc => {
+        const rec = doc.records && doc.records[workerId];
+        if (rec) {
+          if (rec.status === 'present') { daysWorked++; overtime += rec.overtimeHours || 0; }
+          else if (rec.status === 'vacation') vacation++;
+          else if (rec.status === 'absent') absent++;
+        }
+      });
+      const totalAdvances = advances.reduce((s, a) => s + a.amount, 0);
+      const salary = (daysWorked * settings.dailyRate) + (overtime * settings.overtimeRate) - totalAdvances;
+      const worker = workers.find(w => w.id === workerId);
+      document.getElementById('individualReport').innerHTML = `
+        <div class="grid-2">
+          <div class="stat-card"><div class="value">${daysWorked}</div><div class="label">أيام العمل</div></div>
+          <div class="stat-card"><div class="value">${overtime}</div><div class="label">ساعات إضافية</div></div>
+          <div class="stat-card"><div class="value">${vacation}</div><div class="label">إجازات</div></div>
+          <div class="stat-card"><div class="value">${absent}</div><div class="label">غياب</div></div>
+          <div class="stat-card"><div class="value">${totalAdvances.toFixed(2)}</div><div class="label">السلف</div></div>
+          <div class="stat-card"><div class="value">${salary.toFixed(2)}</div><div class="label">المرتب الصافي</div></div>
+        </div>
+        <p class="mt-1"><strong>${worker?.name}</strong> - ${start} إلى ${end}</p>`;
+    }
+
+    async function generateFinancialReport() {
+      const period = document.getElementById('financialPeriod').value;
+      let start, end, label;
+      const dateInput = document.getElementById('financialDate').value;
+      if (period === 'daily') {
+        if (!dateInput) return alert('اختر تاريخ');
+        start = end = dateInput; label = `يوم ${dateInput}`;
+      } else if (period === 'monthly') {
+        if (!dateInput) return alert('اختر تاريخ بداية الشهر');
+        const [year, month] = dateInput.split('-').map(Number);
+        start = `${year}-${String(month).padStart(2,'0')}-01`;
+        const lastDay = new Date(year, month, 0).getDate();
+        end = `${year}-${String(month).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+        label = `شهر ${month}/${year}`;
+      } else {
+        if (!dateInput) return alert('اختر تاريخ');
+        const year = new Date(dateInput).getFullYear();
+        start = `${year}-01-01`; end = `${year}-12-31`; label = `سنة ${year}`;
+      }
+      await loadSettingsFromDB();
+      const attendanceDocs = await getAttendanceInRange(start, end);
+      const advances = await getAdvancesInRange(start, end);
+      let totalDaysWorked = 0, totalOvertime = 0;
+      attendanceDocs.forEach(doc => {
+        const records = doc.records || {};
+        for (const wid in records) {
+          if (records[wid].status === 'present') { totalDaysWorked++; totalOvertime += records[wid].overtimeHours || 0; }
+        }
+      });
+      const totalAdvances = advances.reduce((s,a)=>s+a.amount,0);
+      const totalSalary = (totalDaysWorked * settings.dailyRate) + (totalOvertime * settings.overtimeRate);
+      document.getElementById('financialReport').innerHTML = `
+        <div class="grid-3">
+          <div class="stat-card"><div class="value">${totalDaysWorked}</div><div class="label">أيام العمل</div></div>
+          <div class="stat-card"><div class="value">${totalOvertime}</div><div class="label">ساعات إضافية</div></div>
+          <div class="stat-card"><div class="value">${totalSalary.toFixed(2)}</div><div class="label">إجمالي الأجور</div></div>
+          <div class="stat-card"><div class="value">${totalAdvances.toFixed(2)}</div><div class="label">إجمالي السلف</div></div>
+          <div class="stat-card"><div class="value">${(totalSalary - totalAdvances).toFixed(2)}</div><div class="label">الصافي</div></div>
+        </div><p class="mt-1">${label}</p>`;
+    }
+
+    async function loadPerformanceReport() {
+      await loadWorkersFromDB();
+      const today = new Date();
+      const start30 = new Date(today); start30.setDate(today.getDate() - 30);
+      const startStr = formatDate(start30);
+      const endStr = formatDate(today);
+      const attendanceDocs = await getAttendanceInRange(startStr, endStr);
+      const advances = await getAdvancesInRange(startStr, endStr);
+      const perf = {};
+      workers.forEach(w => { perf[w.id] = { name: w.name, present:0, absent:0, vacation:0, overtimeTotal:0, overtimeCount:0, advancesTotal:0 }; });
+      attendanceDocs.forEach(doc => {
+        const records = doc.records || {};
+        for (const wid in records) {
+          if (!perf[wid]) continue;
+          const rec = records[wid];
+          if (rec.status === 'present') { perf[wid].present++; if (rec.overtimeHours > 0) { perf[wid].overtimeTotal += rec.overtimeHours; perf[wid].overtimeCount++; } }
+          else if (rec.status === 'absent') perf[wid].absent++;
+          else if (rec.status === 'vacation') perf[wid].vacation++;
+        }
+      });
+      advances.forEach(a => { if(perf[a.workerId]) perf[a.workerId].advancesTotal += a.amount; });
+      const tbody = document.querySelector('#performanceTable tbody');
+      tbody.innerHTML = Object.values(perf).map(p => {
+        const total = p.present + p.absent + p.vacation || 1;
+        const rate = ((p.present / total)*100).toFixed(1);
+        const avgOvertime = p.overtimeCount ? (p.overtimeTotal / p.overtimeCount).toFixed(1) : '0';
+        return `<tr><td>${p.name}</td><td>${rate}%</td><td>${p.absent}</td><td>${avgOvertime}</td><td>${p.advancesTotal.toFixed(2)}</td></tr>`;
+      }).join('');
+    }
+
     // ========== الإعدادات ==========
     async function loadSettings() {
-      document.getElementById('dailyRate').value = settings.dailyRate;
-      document.getElementById('overtimeRate').value = settings.overtimeRate;
+      await loadSettingsFromDB();
+      document.getElementById('dailyRate').value = settings.dailyRate || 0;
+      document.getElementById('overtimeRate').value = settings.overtimeRate || 0;
     }
     document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
       settings.dailyRate = +document.getElementById('dailyRate').value || 0;
       settings.overtimeRate = +document.getElementById('overtimeRate').value || 0;
       settings.userId = currentUser.uid;
       await db.collection('settings').doc('global').set(settings);
-      alert('تم الحفظ');
+      alert('تم حفظ الإعدادات');
     });
-    window.onload = () => {}; // auth listener يتحكم
   </script>
 </body>
 </html>
