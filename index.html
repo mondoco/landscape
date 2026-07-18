@@ -87,6 +87,15 @@
 #loginScreen input {
   margin-bottom: 0.5rem;
 }
+/* إخفاء زر الخروج في الموبايل على الشاشات الكبيرة */
+.mobile-only {
+  display: none;
+}
+@media (max-width: 767px) {
+  .mobile-only {
+    display: block;
+  }
+}
 
 @media (max-width: 400px) {
   .bottom-nav a span {
@@ -251,6 +260,12 @@
               <input type="password" id="newPasswordInput" minlength="6">
             </div>
             <button class="btn" id="setPasswordBtn">حفظ كلمة المرور</button>
+          </div>
+          
+          <div class="card mobile-only" id="mobileLogoutCard">
+            <button class="btn btn-danger" id="mobileLogoutBtn" style="width: 100%;">
+              🚪 تسجيل الخروج
+            </button>
           </div>
         </section>
       </main>
@@ -849,6 +864,7 @@
             alert('خطأ: ' + error.message);
           }
         }
+        document.getElementById('mobileLogoutBtn').addEventListener('click', () => { auth.signOut(); });
       });
       await loadSettingsFromDB();
       document.getElementById('dailyRate').value = settings.dailyRate || 0;
