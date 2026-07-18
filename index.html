@@ -78,6 +78,15 @@
   font-size: 0.65rem;          /* تصغير الخط قليلاً */
   padding: 0.2rem 0.4rem;
 }
+    #loginScreen .card {
+  background: var(--card);
+  padding: 1.5rem;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+#loginScreen input {
+  margin-bottom: 0.5rem;
+}
 
 @media (max-width: 400px) {
   .bottom-nav a span {
@@ -106,11 +115,28 @@
   </style>
 </head>
 <body>
-  <div id="loginScreen" class="section active">
-    <h2>🌿 تطبيق لاندسكيب</h2>
-    <p style="margin-bottom:2rem;">سجّل الدخول بحساب Google</p>
-    <button id="googleSignInBtn"><span>🔐</span> تسجيل الدخول بـ Google</button>
+<div id="loginScreen" class="section active">
+  <h2>🌿 تطبيق لاندسكيب</h2>
+  
+  <!-- نموذج البريد وكلمة المرور -->
+  <div class="card" style="width: 90%; max-width: 400px; margin-bottom: 1rem;">
+    <h3 style="text-align: center;">تسجيل الدخول بالبريد</h3>
+    <div class="form-group">
+      <label>البريد الإلكتروني</label>
+      <input type="email" id="emailInput" placeholder="example@mail.com">
+    </div>
+    <div class="form-group">
+      <label>كلمة المرور</label>
+      <input type="password" id="passwordInput" placeholder="كلمة المرور">
+    </div>
+    <button class="btn" id="emailSignInBtn" style="width: 100%; margin-bottom: 0.5rem;">تسجيل الدخول</button>
+    <button class="btn btn-outline" id="emailRegisterBtn" style="width: 100%; margin-bottom: 0.5rem;">إنشاء حساب جديد</button>
+    <a href="#" id="forgotPasswordLink" style="display: block; text-align: center; font-size: 0.9rem; color: var(--primary); text-decoration: none;">نسيت كلمة المرور؟</a>
   </div>
+
+  <p style="margin: 1rem 0;">أو</p>
+  <button id="googleSignInBtn"><span>🔐</span> تسجيل الدخول بـ Google</button>
+</div>
 
   <div id="appMain" class="hidden">
     <div class="app-container">
@@ -217,6 +243,15 @@
             <div class="form-group"><label>سعر ساعة الإضافي</label><input type="number" id="overtimeRate" min="0" step="0.01"></div>
             <button class="btn" id="saveSettingsBtn">💾 حفظ</button>
           </div>
+          <div class="card" id="setPasswordCard" style="display: none;">
+            <h2>🔒 إضافة كلمة مرور للحساب</h2>
+            <p style="font-size:0.9rem; color: var(--text-light);">أضف كلمة مرور لتتمكن من تسجيل الدخول بالبريد الإلكتروني أيضاً.</p>
+            <div class="form-group">
+              <label>كلمة المرور الجديدة</label>
+              <input type="password" id="newPasswordInput" minlength="6">
+            </div>
+            <button class="btn" id="setPasswordBtn">حفظ كلمة المرور</button>
+          </div>
         </section>
       </main>
       <nav class="bottom-nav" id="bottomNav">
@@ -243,7 +278,7 @@
       appId: "1:46953917277:web:15190d6b0095177b3ad6b4"
     };
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+    const db = firebase.firestore();  
     const auth = firebase.auth();
 
     let currentUser = null;
@@ -254,12 +289,57 @@
     // ==================== المصادقة ====================
     const loginScreen = document.getElementById('loginScreen');
     const appMain = document.getElementById('appMain');
+    // بعد document.getElementById('googleSignInBtn').addEventListener ...
+    document.getElementById('emailSignInBtn').addEventListener('click', signInWithEmail);
+    document.getElementById('emailRegisterBtn').addEventListener('click', registerWithEmail);
+    document.getElementById('forgotPasswordLink').addEventListener('click', resetPassword);
     document.getElementById('googleSignInBtn').addEventListener('click', () => {
       const provider = new firebase.auth.GoogleAuthProvider();
       auth.signInWithPopup(provider).catch(err => alert('فشل تسجيل الدخول: ' + err.message));
     });
     document.getElementById('logoutBtn').addEventListener('click', () => auth.signOut());
+    async function signInWithEmail() {
+  const email = document.getElementById('emailInput').value.trim();
+  const password = document.getElementById('passwordInput').value;
+  if (!email || !password) return alert('أدخل البريد وكلمة المرور');
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+    // سيتم تشغيل onAuthStateChanged تلقائياً
+  } catch (error) {
+    if (error.code === 'auth/account-exists-with-different-credential') {
+      // هذا البريد مسجل مسبقاً بحساب Google
+      alert('هذا البريد مسجل بحساب Google. من فضلك سجل الدخول بحساب Google أولاً، ثم يمكنك إضافة كلمة مرور من الإعدادات.');
+    } else {
+      alert('خطأ: ' + error.message);
+        }
+      }
+    }
 
+    async function registerWithEmail() {
+      const email = document.getElementById('emailInput').value.trim();
+      const password = document.getElementById('passwordInput').value;
+      if (!email || !password) return alert('أدخل البريد وكلمة المرور');
+      try {
+        await auth.createUserWithEmailAndPassword(email, password);
+        // تم إنشاء الحساب وتسجيل الدخول تلقائياً
+      } catch (error) {
+        if (error.code === 'auth/email-already-in-use') {
+          alert('البريد مستخدم بالفعل. حاول تسجيل الدخول أو استخدم خيار نسيت كلمة المرور.');
+        } else {
+          alert('خطأ: ' + error.message);
+        }
+      }
+    }
+    
+    function resetPassword() {
+      const email = document.getElementById('emailInput').value.trim();
+      if (!email) return alert('أدخل بريدك الإلكتروني أولاً في الحقل أعلاه');
+      auth.sendPasswordResetEmail(email).then(() => {
+        alert('تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني.');
+      }).catch(error => {
+        alert('خطأ: ' + error.message);
+      });
+    }
     auth.onAuthStateChanged(async (user) => {
       if (user) {
         currentUser = user;
@@ -742,6 +822,34 @@
 
     // ==================== الإعدادات ====================
     async function loadSettings() {
+      // داخل دالة loadSettings أو في onAuthStateChanged بعد تسجيل الدخول
+      if (currentUser) {
+        // إذا كان المستخدم مسجلاً بحساب Google وليس لديه كلمة مرور (providerData لا يحتوي على password)
+        const hasPassword = currentUser.providerData.some(p => p.providerId === 'password');
+        if (!hasPassword) {
+          document.getElementById('setPasswordCard').style.display = 'block';
+        } else {
+          document.getElementById('setPasswordCard').style.display = 'none';
+        }
+      }
+      document.getElementById('setPasswordBtn').addEventListener('click', async () => {
+        const newPassword = document.getElementById('newPasswordInput').value;
+        if (!newPassword || newPassword.length < 6) return alert('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+        try {
+          const user = auth.currentUser;
+          // ربط كلمة مرور بالحساب الحالي (الذي قد يكون Google)
+          const credential = firebase.auth.EmailAuthProvider.credential(user.email, newPassword);
+          await user.linkWithCredential(credential);
+          alert('تم إضافة كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول بالبريد وكلمة المرور.');
+          document.getElementById('setPasswordCard').style.display = 'none';
+        } catch (error) {
+          if (error.code === 'auth/requires-recent-login') {
+            alert('يجب إعادة تسجيل الدخول لتأكيد هويتك. سجل الخروج ثم ادخل مجدداً.');
+          } else {
+            alert('خطأ: ' + error.message);
+          }
+        }
+      });
       await loadSettingsFromDB();
       document.getElementById('dailyRate').value = settings.dailyRate || 0;
       document.getElementById('overtimeRate').value = settings.overtimeRate || 0;
