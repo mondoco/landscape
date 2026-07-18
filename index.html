@@ -313,6 +313,7 @@
       auth.signInWithPopup(provider).catch(err => alert('فشل تسجيل الدخول: ' + err.message));
     });
     document.getElementById('logoutBtn').addEventListener('click', () => auth.signOut());
+    document.getElementById('mobileLogoutBtn').addEventListener('click', () => auth.signOut());
     async function signInWithEmail() {
   const email = document.getElementById('emailInput').value.trim();
   const password = document.getElementById('passwordInput').value;
@@ -864,7 +865,6 @@
             alert('خطأ: ' + error.message);
           }
         }
-        document.getElementById('mobileLogoutBtn').addEventListener('click', () => { auth.signOut(); });
       });
       await loadSettingsFromDB();
       document.getElementById('dailyRate').value = settings.dailyRate || 0;
