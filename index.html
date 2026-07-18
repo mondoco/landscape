@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>إدارة أجور العمال</title>
+   <link rel="icon" href="favicon.ico" type="image/x-icon">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js"></script>
@@ -529,6 +530,7 @@
           <td>${worker.name}</td>
           <td>
             <select class="status-select" data-worker="${worker.id}">
+              <option value="">اختر...</option>
               <option value="present" ${rec.status==='present'?'selected':''}>✅ حاضر</option>
               <option value="vacation" ${rec.status==='vacation'?'selected':''}>🏖️ إجازة</option>
               <option value="absent" ${rec.status==='absent'?'selected':''}>❌ غائب</option>
